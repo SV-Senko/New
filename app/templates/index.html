@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SwitchOps Web</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>SwitchOps Web</h1>
+        <p class="subtitle">
+          Автоматизация работы над коммутаторами через SSH, Telnet и SNMP.
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>Быстрый запуск</h2>
+        <ol>
+          <li>Настройте драйверы подключений.</li>
+          <li>Подключите инвентарь устройств.</li>
+          <li>Запустите массовые операции через API.</li>
+        </ol>
+      </section>
+
+      <section class="card">
+        <h2>Пример API-запроса</h2>
+        <pre><code>POST /api/execute
+{
+  "protocol": "ssh",
+  "host": "10.0.0.10",
+  "username": "admin",
+  "password": "secret",
+  "command": "show version"
+}</code></pre>
+      </section>
+    </main>
+  </body>
+</html>
