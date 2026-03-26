@@ -108,11 +108,20 @@ button { cursor: pointer; }
 .hidden { display: none; }
 .switch-form {
   display: grid;
+  gap: 14px;
+}
+.form-section {
+  border: 2px solid var(--border);
+  padding: 14px;
+  background: rgba(7, 11, 72, 0.45);
+}
+.form-grid {
+  display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
-  align-items: end;
 }
-.switch-form label { display: grid; gap: 6px; }
+.switch-form label { display: grid; gap: 6px; min-width: 0; }
+.form-submit { display: flex; justify-content: flex-end; }
 .switch-form input, .terminal-controls input, .terminal-controls select, .terminal-form input { padding: 10px; }
 .swipe-zone { overflow: hidden; }
 .switch-track {
@@ -181,12 +190,15 @@ button { cursor: pointer; }
   align-items: start;
 }
 .terminal-controls {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  width: min(100%, 720px);
 }
-.terminal-controls input, .terminal-controls select { min-width: 120px; }
+.terminal-control-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+.terminal-controls input, .terminal-controls select, .terminal-controls button { min-width: 0; width: 100%; }
 .terminal-status {
   margin-top: 10px;
   color: var(--warning);
@@ -220,7 +232,9 @@ button { cursor: pointer; }
   .terminal-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 700px) {
-  .terminal-controls { justify-content: stretch; }
   .port-row { grid-template-columns: 1fr; }
   .switch-track { grid-auto-columns: minmax(280px, 320px); }
+  .terminal-form { grid-template-columns: 1fr; }
+  .form-submit { justify-content: stretch; }
+  .form-submit button { width: 100%; }
 }

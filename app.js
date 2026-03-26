@@ -50,13 +50,13 @@ const translations = {
     terminalLabel: '[ TERMINAL ]',
     terminalTitle: 'Инженерная консоль',
     connect: 'Подключить',
-    disconnect: 'Отключить',
     send: 'Отправить',
     sideLabel: '[ SERVER INTEGRATION ]',
     side1: 'После добавления коммутатор опрашивает backend по SNMP API.',
     side2: 'В карточке выводятся количество портов, активные интерфейсы и быстрая сводка.',
     side3: 'Каждый порт можно включить или отключить кнопкой toggle.',
     side4: 'Терминал хранит активную сессию и историю команд после обновления страницы.',
+    side5: 'Для закрытия сессии введите команду disconnect прямо в терминале.',
     noSwitches: 'Нет добавленных коммутаторов. Нажмите + чтобы создать первый.',
     portsCount: 'Портов',
     activeCount: 'Активных',
@@ -76,6 +76,8 @@ const translations = {
     active: 'ACTIVE',
     down: 'DOWN',
     terminalReady: 'BIOS terminal ready. Restore session or connect to a switch.',
+    terminalHint: 'Type disconnect to close the current session.',
+    terminalClosed: 'Сессия закрыта.',
     connectSuccess: 'Сессия успешно восстановлена / подключена.',
     sessionGone: 'Сохранённая сессия больше не существует на сервере.',
     restoredSwitches: 'Список коммутаторов восстановлен из cookie.',
@@ -122,13 +124,13 @@ const translations = {
     terminalLabel: '[ TERMINAL ]',
     terminalTitle: 'Engineering console',
     connect: 'Connect',
-    disconnect: 'Disconnect',
     send: 'Send',
     sideLabel: '[ SERVER INTEGRATION ]',
     side1: 'After adding a switch, the card polls the backend over SNMP.',
     side2: 'Each card shows total ports, active interfaces, and a quick summary.',
     side3: 'Every port can be enabled or disabled with a toggle button.',
     side4: 'The terminal keeps active session metadata and command history after reload.',
+    side5: 'To close the session, type disconnect directly in the terminal.',
     noSwitches: 'No switches added yet. Press + to create the first one.',
     portsCount: 'Ports',
     activeCount: 'Active',
@@ -148,6 +150,8 @@ const translations = {
     active: 'ACTIVE',
     down: 'DOWN',
     terminalReady: 'BIOS terminal ready. Restore session or connect to a switch.',
+    terminalHint: 'Type disconnect to close the current session.',
+    terminalClosed: 'Session closed.',
     connectSuccess: 'Session restored / connected successfully.',
     sessionGone: 'Saved session no longer exists on the server.',
     restoredSwitches: 'Switch inventory restored from cookies.',
@@ -283,13 +287,23 @@ function templates() {
         </div>
         <div class="panel form-panel hidden" id="switch-form-panel">
           <form id="switch-form" class="switch-form">
-            <label>${t('nameLabel')}<input name="name" placeholder="Core-SW-01" required /></label>
-            <label>${t('hostLabel')}<input name="host" placeholder="192.168.0.5" required /></label>
-            <label>${t('communityLabel')}<input name="community" placeholder="system" value="system" required /></label>
-            <label>${t('sshPortLabel')}<input name="sshPort" type="number" value="22" required /></label>
-            <label>${t('telnetPortLabel')}<input name="telnetPort" type="number" value="23" required /></label>
-            <label>${t('usernameLabel')}<input name="username" placeholder="admin" /></label>
-            <button type="submit">${t('save')}</button>
+            <div class="form-section">
+              <p class="panel-label">SNMP</p>
+              <div class="form-grid">
+                <label>${t('nameLabel')}<input name="name" placeholder="Core-SW-01" required /></label>
+                <label>${t('hostLabel')}<input name="host" placeholder="192.168.0.5" required /></label>
+                <label>${t('communityLabel')}<input name="community" placeholder="system" value="system" required /></label>
+              </div>
+            </div>
+            <div class="form-section">
+              <p class="panel-label">SSH / Telnet</p>
+              <div class="form-grid">
+                <label>${t('sshPortLabel')}<input name="sshPort" type="number" value="22" required /></label>
+                <label>${t('telnetPortLabel')}<input name="telnetPort" type="number" value="23" required /></label>
+                <label>${t('usernameLabel')}<input name="username" placeholder="admin" /></label>
+              </div>
+            </div>
+            <div class="form-submit"><button type="submit">${t('save')}</button></div>
           </form>
         </div>
         <div class="swipe-zone panel">
@@ -305,19 +319,20 @@ function templates() {
                 <div class="terminal-status" id="terminal-status"></div>
               </div>
               <div class="terminal-controls">
-                <select id="terminal-protocol"><option value="ssh">SSH</option><option value="telnet">Telnet</option></select>
-                <input id="terminal-host" placeholder="host" />
-                <input id="terminal-port" placeholder="port" type="number" />
-                <input id="terminal-username" placeholder="username" />
-                <input id="terminal-password" placeholder="password" type="password" />
-                <button id="terminal-connect" type="button">${t('connect')}</button>
-                <button id="terminal-disconnect" type="button">${t('disconnect')}</button>
+                <div class="terminal-control-grid">
+                  <select id="terminal-protocol"><option value="ssh">SSH</option><option value="telnet">Telnet</option></select>
+                  <input id="terminal-host" placeholder="host" />
+                  <input id="terminal-port" placeholder="port" type="number" />
+                  <input id="terminal-username" placeholder="username" />
+                  <input id="terminal-password" placeholder="password" type="password" />
+                  <button id="terminal-connect" type="button">${t('connect')}</button>
+                </div>
               </div>
             </div>
             <div class="terminal-screen" id="terminal-screen"></div>
             <form id="terminal-form" class="terminal-form">
               <span>&gt;</span>
-              <input id="terminal-input" autocomplete="off" placeholder="show interface status" />
+              <input id="terminal-input" autocomplete="off" spellcheck="false" placeholder="show interface status / disconnect" />
               <button type="submit">${t('send')}</button>
             </form>
           </section>
@@ -328,6 +343,7 @@ function templates() {
               <li>${t('side2')}</li>
               <li>${t('side3')}</li>
               <li>${t('side4')}</li>
+              <li>${t('side5')}</li>
             </ul>
           </section>
         </div>
@@ -517,6 +533,7 @@ async function connectTerminal() {
   });
   state.terminal.history.push(`[${protocol.toUpperCase()}] ${payload.message}`);
   state.terminal.history.push(payload.output || '');
+  state.terminal.history.push(`[SYSTEM] ${t('terminalHint')}`);
   persistTerminal();
   renderTerminal();
 }
@@ -550,7 +567,7 @@ async function disconnectTerminal() {
   state.terminal.connected = false;
   state.terminal.sessionId = '';
   state.terminal.password = '';
-  state.terminal.history.push('[SYSTEM] Session closed.');
+  state.terminal.history.push(`[SYSTEM] ${t('terminalClosed')}`);
   persistTerminal();
   renderTerminal();
 }
@@ -571,7 +588,6 @@ function initSwitchPage() {
   const formPanel = document.getElementById('switch-form-panel');
   const switchForm = document.getElementById('switch-form');
   const terminalConnect = document.getElementById('terminal-connect');
-  const terminalDisconnect = document.getElementById('terminal-disconnect');
   const terminalForm = document.getElementById('terminal-form');
 
   addButton.addEventListener('click', () => formPanel.classList.toggle('hidden'));
@@ -608,10 +624,6 @@ function initSwitchPage() {
     }
   });
 
-  terminalDisconnect.addEventListener('click', async () => {
-    await disconnectTerminal();
-  });
-
   terminalForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const input = document.getElementById('terminal-input');
@@ -621,6 +633,12 @@ function initSwitchPage() {
     input.value = '';
     persistTerminal();
     renderTerminal();
+
+    if (command.toLowerCase() === 'disconnect') {
+      await disconnectTerminal();
+      return;
+    }
+
     try {
       await sendTerminalCommand(command);
     } catch (error) {

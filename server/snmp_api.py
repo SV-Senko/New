@@ -155,7 +155,7 @@ async def read_ssh_output(session: TerminalSession):
         chunk = await session.process.stdout.read(4096)
         if not chunk:
             break
-        decoded = chunk.decode(errors="ignore")
+        decoded = chunk.decode("utf-8", errors="replace")
         session.history.append(decoded)
         session.updated_at = time.time()
 
@@ -164,7 +164,7 @@ async def read_telnet_output(session: TerminalSession):
     while session.telnet_client is not None:
         chunk = await asyncio.to_thread(session.telnet_client.read_very_eager)
         if chunk:
-            decoded = chunk.decode(errors="ignore")
+            decoded = chunk.decode("utf-8", errors="replace")
             session.history.append(decoded)
             session.updated_at = time.time()
         await asyncio.sleep(0.2)
@@ -182,6 +182,7 @@ async def create_ssh_session(host: str, port: int, username: str, password: str)
         "-p",
         str(port),
         destination,
+        env={"LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"},
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
@@ -197,7 +198,7 @@ async def create_ssh_session(host: str, port: int, username: str, password: str)
     session.reader_task = asyncio.create_task(read_ssh_output(session))
     await asyncio.sleep(1)
     if password and process.stdin is not None:
-        process.stdin.write(f"{password}\n".encode())
+        process.stdin.write(f"{password}\n".encode("utf-8"))
         await process.stdin.drain()
         await asyncio.sleep(0.5)
     session.history.append(f"SSH session created for {destination}:{port}\n")
@@ -218,9 +219,9 @@ async def create_telnet_session(host: str, port: int, username: str, password: s
     session.reader_task = asyncio.create_task(read_telnet_output(session))
     await asyncio.sleep(1)
     if username:
-        await asyncio.to_thread(telnet_client.write, f"{username}\n".encode())
+        await asyncio.to_thread(telnet_client.write, f"{username}\n".encode("utf-8"))
     if password:
-        await asyncio.to_thread(telnet_client.write, f"{password}\n".encode())
+        await asyncio.to_thread(telnet_client.write, f"{password}\n".encode("utf-8"))
     session.history.append(f"Telnet session created for {host}:{port}\n")
     TERMINAL_SESSIONS[session.session_id] = session
     return session
@@ -384,12 +385,12 @@ async def terminal_command(request: web.Request):
     if session.protocol == "ssh":
         if session.process is None or session.process.stdin is None:
             raise web.HTTPBadRequest(text="SSH session is not writable")
-        session.process.stdin.write(f"{command}\n".encode())
+        session.process.stdin.write(f"{command}\n".encode("utf-8"))
         await session.process.stdin.drain()
     else:
         if session.telnet_client is None:
             raise web.HTTPBadRequest(text="Telnet session is not writable")
-        await asyncio.to_thread(session.telnet_client.write, f"{command}\n".encode())
+        await asyncio.to_thread(session.telnet_client.write, f"{command}\n".encode("utf-8"))
 
     await asyncio.sleep(1)
     output = "".join(session.history[before:]) or f"Command sent: {command}\n"
