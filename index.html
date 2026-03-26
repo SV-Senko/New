@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bios Switch Control</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="bios-shell">
+      <header class="topbar">
+        <div>
+          <p class="brand">BIOS SWITCH CONTROL v2.0</p>
+          <h1>Консоль управления коммутаторами</h1>
+        </div>
+        <div class="topbar-actions">
+          <label class="language-box">
+            <span class="lang-label">Язык</span>
+            <select id="language-select">
+              <option value="ru">RU</option>
+              <option value="en">EN</option>
+              <option value="ru_old">ѢРУ</option>
+              <option value="de">DE</option>
+              <option value="zh">中文</option>
+            </select>
+          </label>
+          <nav class="nav">
+            <a href="#main" data-route="main">Main</a>
+            <a href="#switch" data-route="switch">Switch</a>
+            <a href="#about" data-route="about">About</a>
+          </nav>
+        </div>
+      </header>
+
+      <main id="app"></main>
+
+      <footer class="footer">
+        <span>F1 Help</span>
+        <span>F5 Refresh</span>
+        <span>ESC Back</span>
+      </footer>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
