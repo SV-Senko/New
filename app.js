@@ -55,6 +55,9 @@ const translations = {
     accessSection: 'SSH / Telnet',
     terminalOnlyHint: 'Этот тип устройства добавляется без SNMP-опроса и используется только для терминала.',
     noSnmpPorts: 'Для этого устройства SNMP не настроен, поэтому опрос портов недоступен.',
+    addAccess: 'Добавить доступ',
+    saveAccess: 'Сохранить доступ',
+    accessProtocol: 'Протокол доступа',
     swipeLabel: '[ SWIPE SWITCHES ]',
     terminalLabel: '[ TERMINAL ]',
     terminalTitle: 'Инженерная консоль',
@@ -138,6 +141,9 @@ const translations = {
     accessSection: 'SSH / Telnet',
     terminalOnlyHint: 'This device type is added without SNMP polling and is used only for terminal access.',
     noSnmpPorts: 'SNMP is not configured for this device, so port polling is unavailable.',
+    addAccess: 'Add access',
+    saveAccess: 'Save access',
+    accessProtocol: 'Access protocol',
     swipeLabel: '[ SWIPE SWITCHES ]',
     terminalLabel: '[ TERMINAL ]',
     terminalTitle: 'Engineering console',
@@ -224,6 +230,7 @@ const state = {
   language: readCookie(STORAGE_KEYS.language) || 'ru',
   switches: readJsonCookie(STORAGE_KEYS.switches, []),
   addMode: "snmp",
+  formOpen: false,
   terminal: readJsonCookie(STORAGE_KEYS.terminal, {
     connected: false,
     protocol: 'ssh',
@@ -352,7 +359,7 @@ function templates() {
           </div>
           <button class="add-switch-btn" id="add-switch-btn" type="button">+</button>
         </div>
-        <div class="panel form-panel hidden" id="switch-form-panel">
+        <div class="panel form-panel ${state.formOpen ? '' : 'hidden'}" id="switch-form-panel">
           <div class="tab-label">${t('modeTabsLabel')}</div>
           <div class="mode-tabs">
             <button type="button" class="mode-tab ${state.addMode === 'snmp' ? 'active' : ''}" data-mode="snmp">${t('modeSnmp')}</button>
@@ -369,17 +376,18 @@ function templates() {
                 <label>${t('communityLabel')}<input name="community" placeholder="system" value="system" ${state.addMode === 'terminal' ? '' : 'required'} /></label>
               </div>
             </div>` : ''}
+            ${state.addMode !== 'snmp' ? `
             <div class="form-section">
-              <p class="panel-label">${state.addMode === 'snmp' ? t('accessOptional') : t('accessSection')}</p>
+              <p class="panel-label">${t('accessSection')}</p>
               <div class="form-grid">
                 <label>${t('nameLabel')}<input name="terminalName" placeholder="Edge-Term-01" ${state.addMode === 'terminal' ? 'required' : ''} /></label>
                 <label>${t('hostLabel')}<input name="terminalHost" placeholder="192.168.0.15" ${state.addMode === 'terminal' ? 'required' : ''} /></label>
-                <label>${t('sshPortLabel')}<input name="sshPort" type="number" value="22" /></label>
-                <label>${t('telnetPortLabel')}<input name="telnetPort" type="number" value="23" /></label>
+                <label>${t('accessProtocol')}<select name="accessProtocol"><option value="ssh">SSH</option><option value="telnet">Telnet</option></select></label>
+                <label>${t('sshPortLabel')}<input name="terminalPort" type="number" value="${state.addMode === 'hybrid' ? 22 : 23}" /></label>
                 <label>${t('usernameLabel')}<input name="username" placeholder="admin" /></label>
               </div>
               ${state.addMode === 'terminal' ? `<div class="mode-hint">${t('terminalOnlyHint')}</div>` : ''}
-            </div>
+            </div>` : ''}
             <div class="form-submit"><button type="submit">${t('save')}</button></div>
           </form>
         </div>
@@ -504,15 +512,25 @@ function drawSwitches() {
       <article class="switch-card">
         <p class="panel-label">[ ${sw.name} ]</p>
         <strong>${sw.host}</strong>
-        <div class="switch-meta">${sw.mode || "snmp"} · SSH ${sw.sshPort || 22} · Telnet ${sw.telnetPort || 23} · ${sw.username || 'n/a'}</div>
+        <div class="switch-meta">${(sw.protocols || []).join(' & ')}${sw.username ? ` · ${sw.username}` : ''}</div>
         <div class="switch-summary">
           <div class="stat"><span>${t('portsCount')}</span><strong>${ports.length}</strong></div>
           <div class="stat"><span>${t('activeCount')}</span><strong>${active}</strong></div>
         </div>
         <div class="switch-actions">
           ${sw.hasSnmp ? `<button type="button" data-refresh-index="${swIndex}">${t('refreshPorts')}</button>` : ``}
+          ${sw.hasTerminal ? `` : `<button type="button" data-access-index="${swIndex}">${t('addAccess')}</button>`}
           <button type="button" data-remove-index="${swIndex}">${t('removeSwitch')}</button>
         </div>
+        ${sw.showAccessForm ? `
+          <form class="inline-access-form" data-inline-form="${swIndex}">
+            <label>${t('hostLabel')}<input name="terminalHost" value="${sw.host || ''}" required /></label>
+            <label>${t('accessProtocol')}<select name="accessProtocol"><option value="ssh">SSH</option><option value="telnet">Telnet</option></select></label>
+            <label>Port<input name="terminalPort" type="number" value="22" required /></label>
+            <label>${t('usernameLabel')}<input name="username" value="${sw.username || ''}" /></label>
+            <button type="submit">${t('saveAccess')}</button>
+          </form>
+        ` : ''}
         ${sw.error ? `<div class="error-box">${sw.error}</div>` : ''}
         ${sw.loading ? '<div class="loading-box">Loading…</div>' : ''}
         ${sw.hasSnmp ? '' : `<div class="loading-box">${t('noSnmpPorts')}</div>`}
@@ -547,7 +565,37 @@ function drawSwitches() {
       drawSwitches();
     });
   });
+  track.querySelectorAll('[data-access-index]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const idx = Number(button.dataset.accessIndex);
+      state.switches[idx].showAccessForm = !state.switches[idx].showAccessForm;
+      persistSwitches();
+      drawSwitches();
+    });
+  });
+  track.querySelectorAll('[data-inline-form]').forEach((form) => {
+    form.querySelector('[name="accessProtocol"]').addEventListener('change', (event) => {
+      form.querySelector('[name="terminalPort"]').value = event.target.value === 'ssh' ? 22 : 23;
+    });
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const idx = Number(form.dataset.inlineForm);
+      const fd = new FormData(form);
+      const protocol = fd.get('accessProtocol');
+      const item = state.switches[idx];
+      item.hasTerminal = true;
+      item.accessProtocol = protocol;
+      item.accessPort = Number(fd.get('terminalPort'));
+      item.terminalHost = fd.get('terminalHost');
+      item.username = fd.get('username');
+      item.protocols = [...new Set([...(item.hasSnmp ? ['SNMP'] : []), protocol.toUpperCase()])];
+      item.showAccessForm = false;
+      persistSwitches();
+      drawSwitches();
+    });
+  });
 }
+
 
 async function togglePort(switchIndex, portIndex) {
   const sw = state.switches[switchIndex];
@@ -662,7 +710,7 @@ async function disconnectTerminal() {
 function fillTerminalFieldsFromState() {
   document.getElementById('terminal-protocol').value = state.terminal.protocol || 'ssh';
   document.getElementById('terminal-host').value = state.terminal.host || '';
-  document.getElementById('terminal-port').value = state.terminal.port || '';
+  document.getElementById('terminal-port').value = state.terminal.port || (state.terminal.protocol === 'telnet' ? 23 : 22);
   document.getElementById('terminal-username').value = state.terminal.username || '';
   document.getElementById('terminal-password').value = state.terminal.password || '';
 }
@@ -675,13 +723,19 @@ function initSwitchPage() {
   const formPanel = document.getElementById('switch-form-panel');
   const switchForm = document.getElementById('switch-form');
   const terminalConnect = document.getElementById('terminal-connect');
+  const terminalProtocol = document.getElementById('terminal-protocol');
+  const terminalPort = document.getElementById('terminal-port');
   const terminalForm = document.getElementById('terminal-form');
 
-  addButton.addEventListener('click', () => formPanel.classList.toggle('hidden'));
+  addButton.addEventListener('click', () => {
+    state.formOpen = !state.formOpen;
+    render('switch');
+  });
 
   document.querySelectorAll('.mode-tab').forEach((button) => {
     button.addEventListener('click', () => {
       state.addMode = button.dataset.mode;
+      state.formOpen = true;
       render('switch');
     });
   });
@@ -691,30 +745,41 @@ function initSwitchPage() {
     const formData = new FormData(switchForm);
     const mode = state.addMode;
     const hasSnmp = mode !== 'terminal';
-    const hasTerminal = mode !== 'snmp' || Boolean(formData.get('terminalHost'));
+    const accessProtocol = formData.get('accessProtocol') || 'ssh';
+    const hasTerminal = mode !== 'snmp';
+    const protocols = [];
+    if (hasSnmp) protocols.push('SNMP');
+    if (hasTerminal) protocols.push(accessProtocol.toUpperCase());
     const switchItem = {
       mode,
       hasSnmp,
       hasTerminal,
+      protocols,
       name: hasSnmp ? formData.get('name') : formData.get('terminalName'),
       host: hasSnmp ? formData.get('host') : formData.get('terminalHost'),
       community: hasSnmp ? formData.get('community') : '',
-      sshPort: Number(formData.get('sshPort') || 22),
-      telnetPort: Number(formData.get('telnetPort') || 23),
+      accessProtocol: hasTerminal ? accessProtocol : '',
+      accessPort: hasTerminal ? Number(formData.get('terminalPort') || (accessProtocol === 'ssh' ? 22 : 23)) : null,
       username: formData.get('username'),
       terminalHost: formData.get('terminalHost') || formData.get('host'),
       ports: [],
       error: '',
       loading: false,
+      showAccessForm: false,
     };
     state.switches.push(switchItem);
     persistSwitches();
     switchForm.reset();
-    formPanel.classList.add('hidden');
+    state.formOpen = false;
     drawSwitches();
     if (switchItem.hasSnmp) {
       await refreshSwitch(state.switches.length - 1);
     }
+  });
+
+  terminalProtocol.addEventListener('change', () => {
+    const defaultPort = terminalProtocol.value === 'telnet' ? 23 : 22;
+    if (!terminalPort.value || terminalPort.value === '22' || terminalPort.value === '23') terminalPort.value = defaultPort;
   });
 
   terminalConnect.addEventListener('click', async () => {
