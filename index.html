@@ -10,14 +10,23 @@
     <div class="bios-shell">
       <header class="topbar">
         <div>
-          <p class="brand">BIOS SWITCH CONTROL v1.0</p>
-          <h1>Switch Management Console</h1>
+          <p class="brand">BIOS SWITCH CONTROL v2.0</p>
+          <h1>Консоль управления коммутаторами</h1>
         </div>
-        <nav class="nav">
-          <a href="#main" data-route="main">Main</a>
-          <a href="#switch" data-route="switch">Switch</a>
-          <a href="#about" data-route="about">About</a>
-        </nav>
+        <div class="topbar-actions">
+          <label class="language-box">
+            <span class="lang-label">Язык</span>
+            <select id="language-select">
+              <option value="ru">RU</option>
+              <option value="en">EN</option>
+            </select>
+          </label>
+          <nav class="nav">
+            <a href="#main" data-route="main">Main</a>
+            <a href="#switch" data-route="switch">Switch</a>
+            <a href="#about" data-route="about">About</a>
+          </nav>
+        </div>
       </header>
 
       <main id="app"></main>
@@ -28,162 +37,6 @@
         <span>ESC Back</span>
       </footer>
     </div>
-
-    <template id="main-template">
-      <section class="page-grid">
-        <article class="panel hero-panel">
-          <p class="panel-label">[ PRODUCT OVERVIEW ]</p>
-          <h2>BIOS-style dashboard for switch operations</h2>
-          <p>
-            Платформа объединяет мониторинг, управление портами и централизованную работу с сетевыми
-            коммутаторами через единый интерфейс в эстетике классического BIOS.
-          </p>
-          <div class="info-grid">
-            <div class="info-box">
-              <strong>Цель</strong>
-              <span>Единая схема управления коммутаторами и состоянием портов.</span>
-            </div>
-            <div class="info-box">
-              <strong>Подход</strong>
-              <span>Визуально строгий интерфейс без лишнего шума для NOC/лаборатории.</span>
-            </div>
-            <div class="info-box">
-              <strong>Архитектура</strong>
-              <span>Frontend BIOS UI + backend API для SNMP/SSH интеграции.</span>
-            </div>
-          </div>
-        </article>
-
-        <article class="panel">
-          <p class="panel-label">[ WHY THIS DIRECTION ]</p>
-          <ul class="bios-list">
-            <li>Операторы сразу видят активные порты, состояние uplink и критические интерфейсы.</li>
-            <li>Система упрощает onboarding: один интерфейс для нескольких моделей коммутаторов.</li>
-            <li>SNMP используется для массового опроса и изменения состояния портов.</li>
-            <li>SSH сохраняется для инженерной диагностики и ручных команд.</li>
-            <li>Telnet вынесен из backend-логики как небезопасный legacy-канал.</li>
-          </ul>
-        </article>
-
-        <article class="panel">
-          <p class="panel-label">[ PROTOCOL STACK ]</p>
-          <div class="protocols">
-            <div class="protocol-card">
-              <h3>SNMP</h3>
-              <p>Основной транспорт для инвентаризации, статусов и управления портами.</p>
-            </div>
-            <div class="protocol-card disabled">
-              <h3>Telnet</h3>
-              <p>Отмечен как legacy. В серверной части удаляется ради безопасности.</p>
-            </div>
-            <div class="protocol-card">
-              <h3>SSH</h3>
-              <p>Канал инженерного доступа для выполнения команд и диагностики.</p>
-            </div>
-          </div>
-        </article>
-      </section>
-    </template>
-
-    <template id="switch-template">
-      <section class="switch-layout">
-        <div class="panel toolbar-panel">
-          <div>
-            <p class="panel-label">[ SWITCH INVENTORY ]</p>
-            <h2>Добавление и контроль коммутаторов</h2>
-          </div>
-          <button class="add-switch-btn" id="add-switch-btn" type="button">+</button>
-        </div>
-
-        <div class="panel form-panel hidden" id="switch-form-panel">
-          <form id="switch-form" class="switch-form">
-            <label>
-              Имя
-              <input name="name" placeholder="Core-SW-01" required />
-            </label>
-            <label>
-              IP / Host
-              <input name="host" placeholder="192.168.0.5" required />
-            </label>
-            <label>
-              SNMP community
-              <input name="community" placeholder="system" value="system" required />
-            </label>
-            <button type="submit">Сохранить</button>
-          </form>
-        </div>
-
-        <div class="swipe-zone panel">
-          <p class="panel-label">[ SWIPE SWITCHES ]</p>
-          <div id="switch-track" class="switch-track"></div>
-        </div>
-
-        <div class="terminal-grid">
-          <section class="panel terminal-panel">
-            <div class="terminal-header">
-              <div>
-                <p class="panel-label">[ TERMINAL ]</p>
-                <h2>Инженерная консоль</h2>
-              </div>
-              <div class="terminal-controls">
-                <select id="terminal-protocol">
-                  <option value="ssh">SSH</option>
-                  <option value="telnet">Telnet (legacy)</option>
-                </select>
-                <input id="terminal-host" placeholder="host" />
-                <button id="terminal-connect" type="button">Connect</button>
-              </div>
-            </div>
-            <div class="terminal-screen" id="terminal-screen"></div>
-            <form id="terminal-form" class="terminal-form">
-              <span>&gt;</span>
-              <input id="terminal-input" autocomplete="off" placeholder="show interface status" />
-              <button type="submit">Send</button>
-            </form>
-          </section>
-
-          <section class="panel side-panel">
-            <p class="panel-label">[ SERVER INTEGRATION ]</p>
-            <ul class="bios-list compact">
-              <li>После добавления коммутатор опрашивает backend по SNMP API.</li>
-              <li>В карточке выводятся количество портов и активные интерфейсы.</li>
-              <li>Каждый порт можно включить или отключить кнопкой toggle.</li>
-              <li>Telnet в backend помечен к удалению; SSH остаётся рабочим каналом.</li>
-            </ul>
-          </section>
-        </div>
-      </section>
-    </template>
-
-    <template id="about-template">
-      <section class="page-grid about-grid">
-        <article class="panel">
-          <p class="panel-label">[ AUTHORS ]</p>
-          <h2>Авторы проекта</h2>
-          <div class="authors">
-            <div class="author-card">
-              <h3>OpenAI / GPT-5.2-Codex</h3>
-              <p>Отвечал за проектирование интерфейса, серверную адаптацию и BIOS-стилистику.</p>
-            </div>
-            <div class="author-card">
-              <h3>Senko</h3>
-              <p>Соавтор идеи, постановки задачи и направления по управлению коммутаторами.</p>
-            </div>
-          </div>
-        </article>
-
-        <article class="panel">
-          <p class="panel-label">[ DESCRIPTION ]</p>
-          <p>
-            Проект предназначен для централизованного управления сетевыми коммутаторами: визуализация
-            состояния портов, безопасное управление через SNMP и инженерный доступ по SSH.
-          </p>
-          <p>
-            Концепция BIOS подчёркивает надёжность, концентрацию на данных и ощущение системной панели.
-          </p>
-        </article>
-      </section>
-    </template>
 
     <script src="app.js"></script>
   </body>

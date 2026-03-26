@@ -1,85 +1,428 @@
 const app = document.getElementById('app');
-const templates = {
-  main: document.getElementById('main-template'),
-  switch: document.getElementById('switch-template'),
-  about: document.getElementById('about-template'),
+const COOKIE_DAYS = 30;
+const STORAGE_KEYS = {
+  language: 'bios_language',
+  switches: 'bios_switches',
+  terminal: 'bios_terminal_state',
 };
+const DEFAULT_API = 'http://localhost:5050';
 
-const state = {
-  switches: [],
-  terminal: {
-    connected: false,
-    protocol: 'ssh',
-    host: '',
-    history: ['BIOS terminal ready. Use SSH for secure access.'],
+const translations = {
+  ru: {
+    brand: 'BIOS SWITCH CONTROL v2.0',
+    title: 'Консоль управления коммутаторами',
+    navMain: 'Main',
+    navSwitch: 'Switch',
+    navAbout: 'About',
+    langLabel: 'Язык',
+    footerHelp: 'F1 Помощь',
+    footerRefresh: 'F5 Обновить',
+    footerBack: 'ESC Назад',
+    productOverview: '[ PRODUCT OVERVIEW ]',
+    productTitle: 'BIOS-style dashboard for switch operations',
+    productDescription: 'Платформа объединяет мониторинг, управление портами и централизованную работу с сетевыми коммутаторами через единый интерфейс в эстетике классического BIOS.',
+    goalTitle: 'Цель',
+    goalText: 'Единая схема управления коммутаторами и состоянием портов.',
+    approachTitle: 'Подход',
+    approachText: 'Визуально строгий интерфейс без лишнего шума для NOC/лаборатории.',
+    architectureTitle: 'Архитектура',
+    architectureText: 'Frontend BIOS UI + backend API для SNMP/SSH/Telnet интеграции.',
+    whyDirection: '[ WHY THIS DIRECTION ]',
+    why1: 'Операторы сразу видят активные порты, состояние uplink и критические интерфейсы.',
+    why2: 'Система упрощает onboarding: один интерфейс для нескольких моделей коммутаторов.',
+    why3: 'SNMP используется для массового опроса и изменения состояния портов.',
+    why4: 'SSH и Telnet доступны как инженерные каналы для реальной работы с CLI.',
+    why5: 'Состояние интерфейса, язык и список коммутаторов сохраняются между перезагрузками.',
+    protocolStack: '[ PROTOCOL STACK ]',
+    snmpDesc: 'Основной транспорт для инвентаризации, статусов и управления портами.',
+    telnetDesc: 'Legacy-канал для оборудования, где Telnet всё ещё нужен в эксплуатации.',
+    sshDesc: 'Основной защищённый канал инженерного доступа и выполнения команд.',
+    inventoryLabel: '[ SWITCH INVENTORY ]',
+    inventoryTitle: 'Добавление и контроль коммутаторов',
+    save: 'Сохранить',
+    nameLabel: 'Имя',
+    hostLabel: 'IP / Host',
+    communityLabel: 'SNMP community',
+    sshPortLabel: 'SSH port',
+    telnetPortLabel: 'Telnet port',
+    usernameLabel: 'Username',
+    swipeLabel: '[ SWIPE SWITCHES ]',
+    terminalLabel: '[ TERMINAL ]',
+    terminalTitle: 'Инженерная консоль',
+    connect: 'Подключить',
+    disconnect: 'Отключить',
+    send: 'Отправить',
+    sideLabel: '[ SERVER INTEGRATION ]',
+    side1: 'После добавления коммутатор опрашивает backend по SNMP API.',
+    side2: 'В карточке выводятся количество портов, активные интерфейсы и быстрая сводка.',
+    side3: 'Каждый порт можно включить или отключить кнопкой toggle.',
+    side4: 'Терминал хранит активную сессию и историю команд после обновления страницы.',
+    noSwitches: 'Нет добавленных коммутаторов. Нажмите + чтобы создать первый.',
+    portsCount: 'Портов',
+    activeCount: 'Активных',
+    connectFirst: 'Сначала подключитесь к SSH или Telnet сессии.',
+    authorsLabel: '[ AUTHORS ]',
+    authorsTitle: 'Авторы проекта',
+    author1: 'Отвечал за проектирование интерфейса, серверную адаптацию и BIOS-стилистику.',
+    author2: 'Соавтор идеи, постановки задачи и направления по управлению коммутаторами.',
+    descriptionLabel: '[ DESCRIPTION ]',
+    aboutText1: 'Проект предназначен для централизованного управления сетевыми коммутаторами: визуализация состояния портов, управление по SNMP и инженерный доступ по SSH/Telnet.',
+    aboutText2: 'Концепция BIOS подчёркивает надёжность, концентрацию на данных и ощущение системной панели.',
+    statusConnected: 'Подключено',
+    statusDisconnected: 'Отключено',
+    removeSwitch: 'Удалить',
+    refreshPorts: 'Обновить',
+    toggle: 'Toggle',
+    active: 'ACTIVE',
+    down: 'DOWN',
+    terminalReady: 'BIOS terminal ready. Restore session or connect to a switch.',
+    connectSuccess: 'Сессия успешно восстановлена / подключена.',
+    sessionGone: 'Сохранённая сессия больше не существует на сервере.',
+    restoredSwitches: 'Список коммутаторов восстановлен из cookie.',
+  },
+  en: {
+    brand: 'BIOS SWITCH CONTROL v2.0',
+    title: 'Switch Management Console',
+    navMain: 'Main',
+    navSwitch: 'Switch',
+    navAbout: 'About',
+    langLabel: 'Language',
+    footerHelp: 'F1 Help',
+    footerRefresh: 'F5 Refresh',
+    footerBack: 'ESC Back',
+    productOverview: '[ PRODUCT OVERVIEW ]',
+    productTitle: 'BIOS-style dashboard for switch operations',
+    productDescription: 'The platform combines monitoring, port control, and centralized switch operations in a classic BIOS-inspired interface.',
+    goalTitle: 'Goal',
+    goalText: 'One control scheme for switches and port states.',
+    approachTitle: 'Approach',
+    approachText: 'Strict, low-noise visual language for NOC and lab workflows.',
+    architectureTitle: 'Architecture',
+    architectureText: 'Frontend BIOS UI + backend API for SNMP/SSH/Telnet integration.',
+    whyDirection: '[ WHY THIS DIRECTION ]',
+    why1: 'Operators immediately see active ports, uplinks, and critical interfaces.',
+    why2: 'The system simplifies onboarding with one UI for multiple switch models.',
+    why3: 'SNMP is used for bulk polling and port state changes.',
+    why4: 'SSH and Telnet remain available as engineering CLI channels.',
+    why5: 'UI state, language, and switch inventory persist across page reloads.',
+    protocolStack: '[ PROTOCOL STACK ]',
+    snmpDesc: 'Primary transport for inventory, statuses, and port control.',
+    telnetDesc: 'Legacy channel for devices that still require Telnet in production.',
+    sshDesc: 'Primary secure engineering access channel for command execution.',
+    inventoryLabel: '[ SWITCH INVENTORY ]',
+    inventoryTitle: 'Add and control switches',
+    save: 'Save',
+    nameLabel: 'Name',
+    hostLabel: 'IP / Host',
+    communityLabel: 'SNMP community',
+    sshPortLabel: 'SSH port',
+    telnetPortLabel: 'Telnet port',
+    usernameLabel: 'Username',
+    swipeLabel: '[ SWIPE SWITCHES ]',
+    terminalLabel: '[ TERMINAL ]',
+    terminalTitle: 'Engineering console',
+    connect: 'Connect',
+    disconnect: 'Disconnect',
+    send: 'Send',
+    sideLabel: '[ SERVER INTEGRATION ]',
+    side1: 'After adding a switch, the card polls the backend over SNMP.',
+    side2: 'Each card shows total ports, active interfaces, and a quick summary.',
+    side3: 'Every port can be enabled or disabled with a toggle button.',
+    side4: 'The terminal keeps active session metadata and command history after reload.',
+    noSwitches: 'No switches added yet. Press + to create the first one.',
+    portsCount: 'Ports',
+    activeCount: 'Active',
+    connectFirst: 'Connect to an SSH or Telnet session first.',
+    authorsLabel: '[ AUTHORS ]',
+    authorsTitle: 'Project authors',
+    author1: 'Responsible for interface design, server adaptation, and BIOS styling.',
+    author2: 'Co-author of the product idea, requirements, and switch management direction.',
+    descriptionLabel: '[ DESCRIPTION ]',
+    aboutText1: 'The project is intended for centralized switch control: port visualization, SNMP management, and engineering access over SSH/Telnet.',
+    aboutText2: 'The BIOS concept emphasizes reliability, focus, and a system-console feeling.',
+    statusConnected: 'Connected',
+    statusDisconnected: 'Disconnected',
+    removeSwitch: 'Remove',
+    refreshPorts: 'Refresh',
+    toggle: 'Toggle',
+    active: 'ACTIVE',
+    down: 'DOWN',
+    terminalReady: 'BIOS terminal ready. Restore session or connect to a switch.',
+    connectSuccess: 'Session restored / connected successfully.',
+    sessionGone: 'Saved session no longer exists on the server.',
+    restoredSwitches: 'Switch inventory restored from cookies.',
   },
 };
 
-const fallbackPorts = [
-  { port: 1, name: 'GE1/0/1', status: '1', speed: '1000', duplex: 'full', vlan: '10' },
-  { port: 2, name: 'GE1/0/2', status: '2', speed: '1000', duplex: 'full', vlan: '20' },
-  { port: 3, name: 'GE1/0/3', status: '1', speed: '100', duplex: 'half', vlan: '30' },
-  { port: 4, name: 'GE1/0/4', status: '2', speed: '1000', duplex: 'full', vlan: '99' },
-];
+const state = {
+  language: readCookie(STORAGE_KEYS.language) || 'ru',
+  switches: readJsonCookie(STORAGE_KEYS.switches, []),
+  terminal: readJsonCookie(STORAGE_KEYS.terminal, {
+    connected: false,
+    protocol: 'ssh',
+    host: '',
+    port: '',
+    username: '',
+    password: '',
+    sessionId: '',
+    history: [],
+  }),
+};
+
+if (!Array.isArray(state.terminal.history) || !state.terminal.history.length) {
+  state.terminal.history = [t('terminalReady')];
+}
+
+function t(key) {
+  return (translations[state.language] || translations.ru)[key] || key;
+}
+
+function setCookie(name, value, days = COOKIE_DAYS) {
+  const expires = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+}
+
+function readCookie(name) {
+  const item = document.cookie
+    .split('; ')
+    .find((row) => row.startsWith(`${name}=`));
+  return item ? decodeURIComponent(item.split('=').slice(1).join('=')) : '';
+}
+
+function setJsonCookie(name, value) {
+  setCookie(name, JSON.stringify(value));
+}
+
+function readJsonCookie(name, fallback) {
+  try {
+    const value = readCookie(name);
+    return value ? JSON.parse(value) : fallback;
+  } catch (error) {
+    return fallback;
+  }
+}
+
+function persistSwitches() {
+  setJsonCookie(STORAGE_KEYS.switches, state.switches.map(({ password, ...item }) => item));
+}
+
+function persistTerminal() {
+  setJsonCookie(STORAGE_KEYS.terminal, {
+    ...state.terminal,
+    history: state.terminal.history.slice(-40),
+  });
+}
 
 function setActiveNav(route) {
   document.querySelectorAll('.nav a').forEach((link) => {
     link.classList.toggle('active', link.dataset.route === route);
+    const key = link.dataset.route === 'main' ? 'navMain' : link.dataset.route === 'switch' ? 'navSwitch' : 'navAbout';
+    link.textContent = t(key);
   });
 }
 
+function applyShellTranslations() {
+  document.documentElement.lang = state.language;
+  document.querySelector('.brand').textContent = t('brand');
+  document.querySelector('.topbar h1').textContent = t('title');
+  document.querySelector('.lang-label').textContent = t('langLabel');
+  document.querySelector('.footer span:nth-child(1)').textContent = t('footerHelp');
+  document.querySelector('.footer span:nth-child(2)').textContent = t('footerRefresh');
+  document.querySelector('.footer span:nth-child(3)').textContent = t('footerBack');
+}
+
 function render(route = location.hash.replace('#', '') || 'main') {
-  const template = templates[route] || templates.main;
-  app.innerHTML = template.innerHTML;
+  app.innerHTML = templates()[route] || templates().main;
   setActiveNav(route);
+  applyShellTranslations();
   if (route === 'switch') initSwitchPage();
 }
 
-async function fetchPorts(switchItem) {
-  const url = `http://localhost:5050/api/snmp/ports?host=${encodeURIComponent(switchItem.host)}&community=${encodeURIComponent(switchItem.community)}`;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Backend unavailable');
-    const payload = await response.json();
-    return Object.values(payload);
-  } catch (error) {
-    return fallbackPorts;
-  }
+function templates() {
+  return {
+    main: `
+      <section class="page-grid">
+        <article class="panel hero-panel">
+          <p class="panel-label">${t('productOverview')}</p>
+          <h2>${t('productTitle')}</h2>
+          <p>${t('productDescription')}</p>
+          <div class="info-grid">
+            <div class="info-box"><strong>${t('goalTitle')}</strong><span>${t('goalText')}</span></div>
+            <div class="info-box"><strong>${t('approachTitle')}</strong><span>${t('approachText')}</span></div>
+            <div class="info-box"><strong>${t('architectureTitle')}</strong><span>${t('architectureText')}</span></div>
+          </div>
+        </article>
+        <article class="panel">
+          <p class="panel-label">${t('whyDirection')}</p>
+          <ul class="bios-list">
+            <li>${t('why1')}</li>
+            <li>${t('why2')}</li>
+            <li>${t('why3')}</li>
+            <li>${t('why4')}</li>
+            <li>${t('why5')}</li>
+          </ul>
+        </article>
+        <article class="panel">
+          <p class="panel-label">${t('protocolStack')}</p>
+          <div class="protocols">
+            <div class="protocol-card"><h3>SNMP</h3><p>${t('snmpDesc')}</p></div>
+            <div class="protocol-card"><h3>Telnet</h3><p>${t('telnetDesc')}</p></div>
+            <div class="protocol-card"><h3>SSH</h3><p>${t('sshDesc')}</p></div>
+          </div>
+        </article>
+      </section>
+    `,
+    switch: `
+      <section class="switch-layout">
+        <div class="panel toolbar-panel">
+          <div>
+            <p class="panel-label">${t('inventoryLabel')}</p>
+            <h2>${t('inventoryTitle')}</h2>
+          </div>
+          <button class="add-switch-btn" id="add-switch-btn" type="button">+</button>
+        </div>
+        <div class="panel form-panel hidden" id="switch-form-panel">
+          <form id="switch-form" class="switch-form">
+            <label>${t('nameLabel')}<input name="name" placeholder="Core-SW-01" required /></label>
+            <label>${t('hostLabel')}<input name="host" placeholder="192.168.0.5" required /></label>
+            <label>${t('communityLabel')}<input name="community" placeholder="system" value="system" required /></label>
+            <label>${t('sshPortLabel')}<input name="sshPort" type="number" value="22" required /></label>
+            <label>${t('telnetPortLabel')}<input name="telnetPort" type="number" value="23" required /></label>
+            <label>${t('usernameLabel')}<input name="username" placeholder="admin" /></label>
+            <button type="submit">${t('save')}</button>
+          </form>
+        </div>
+        <div class="swipe-zone panel">
+          <p class="panel-label">${t('swipeLabel')}</p>
+          <div id="switch-track" class="switch-track"></div>
+        </div>
+        <div class="terminal-grid">
+          <section class="panel terminal-panel">
+            <div class="terminal-header">
+              <div>
+                <p class="panel-label">${t('terminalLabel')}</p>
+                <h2>${t('terminalTitle')}</h2>
+                <div class="terminal-status" id="terminal-status"></div>
+              </div>
+              <div class="terminal-controls">
+                <select id="terminal-protocol"><option value="ssh">SSH</option><option value="telnet">Telnet</option></select>
+                <input id="terminal-host" placeholder="host" />
+                <input id="terminal-port" placeholder="port" type="number" />
+                <input id="terminal-username" placeholder="username" />
+                <input id="terminal-password" placeholder="password" type="password" />
+                <button id="terminal-connect" type="button">${t('connect')}</button>
+                <button id="terminal-disconnect" type="button">${t('disconnect')}</button>
+              </div>
+            </div>
+            <div class="terminal-screen" id="terminal-screen"></div>
+            <form id="terminal-form" class="terminal-form">
+              <span>&gt;</span>
+              <input id="terminal-input" autocomplete="off" placeholder="show interface status" />
+              <button type="submit">${t('send')}</button>
+            </form>
+          </section>
+          <section class="panel side-panel">
+            <p class="panel-label">${t('sideLabel')}</p>
+            <ul class="bios-list compact">
+              <li>${t('side1')}</li>
+              <li>${t('side2')}</li>
+              <li>${t('side3')}</li>
+              <li>${t('side4')}</li>
+            </ul>
+          </section>
+        </div>
+      </section>
+    `,
+    about: `
+      <section class="page-grid about-grid">
+        <article class="panel">
+          <p class="panel-label">${t('authorsLabel')}</p>
+          <h2>${t('authorsTitle')}</h2>
+          <div class="authors">
+            <div class="author-card"><h3>OpenAI / GPT-5.2-Codex</h3><p>${t('author1')}</p></div>
+            <div class="author-card"><h3>Senko</h3><p>${t('author2')}</p></div>
+          </div>
+        </article>
+        <article class="panel">
+          <p class="panel-label">${t('descriptionLabel')}</p>
+          <p>${t('aboutText1')}</p>
+          <p>${t('aboutText2')}</p>
+        </article>
+      </section>
+    `,
+  };
 }
 
-async function createSwitchCard(switchItem) {
-  const ports = await fetchPorts(switchItem);
-  switchItem.ports = ports;
+async function api(path, options = {}) {
+  const response = await fetch(`${DEFAULT_API}${path}`, {
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    ...options,
+  });
+  const isJson = (response.headers.get('Content-Type') || '').includes('application/json');
+  const payload = isJson ? await response.json() : await response.text();
+  if (!response.ok) {
+    const message = typeof payload === 'string' ? payload : payload.error || payload.message || 'Request failed';
+    throw new Error(message);
+  }
+  return payload;
+}
+
+async function fetchPorts(switchItem) {
+  const query = new URLSearchParams({ host: switchItem.host, community: switchItem.community });
+  return Object.values(await api(`/api/snmp/ports?${query.toString()}`));
+}
+
+async function refreshSwitch(index) {
+  const switchItem = state.switches[index];
+  switchItem.loading = true;
   drawSwitches();
+  switchItem.error = '';
+  try {
+    switchItem.ports = await fetchPorts(switchItem);
+  } catch (error) {
+    switchItem.error = error.message;
+  } finally {
+    switchItem.loading = false;
+    persistSwitches();
+    drawSwitches();
+  }
 }
 
 function drawSwitches() {
   const track = document.getElementById('switch-track');
   if (!track) return;
   if (!state.switches.length) {
-    track.innerHTML = '<div class="switch-card"><p>Нет добавленных коммутаторов. Нажмите + чтобы создать первый.</p></div>';
+    track.innerHTML = `<div class="switch-card"><p>${t('noSwitches')}</p></div>`;
     return;
   }
 
   track.innerHTML = state.switches.map((sw, swIndex) => {
-    const active = sw.ports.filter((port) => String(port.status) === '1').length;
+    const ports = Array.isArray(sw.ports) ? sw.ports : [];
+    const active = ports.filter((port) => String(port.status) === '1').length;
     return `
       <article class="switch-card">
         <p class="panel-label">[ ${sw.name} ]</p>
         <strong>${sw.host}</strong>
+        <div class="switch-meta">SSH ${sw.sshPort || 22} · Telnet ${sw.telnetPort || 23} · ${sw.username || 'n/a'}</div>
         <div class="switch-summary">
-          <div class="stat"><span>Портов</span><strong>${sw.ports.length}</strong></div>
-          <div class="stat"><span>Активных</span><strong>${active}</strong></div>
+          <div class="stat"><span>${t('portsCount')}</span><strong>${ports.length}</strong></div>
+          <div class="stat"><span>${t('activeCount')}</span><strong>${active}</strong></div>
         </div>
+        <div class="switch-actions">
+          <button type="button" data-refresh-index="${swIndex}">${t('refreshPorts')}</button>
+          <button type="button" data-remove-index="${swIndex}">${t('removeSwitch')}</button>
+        </div>
+        ${sw.error ? `<div class="error-box">${sw.error}</div>` : ''}
+        ${sw.loading ? '<div class="loading-box">Loading…</div>' : ''}
         <div class="port-list">
-          ${sw.ports.map((port, portIndex) => `
+          ${ports.map((port, portIndex) => `
             <div class="port-row">
               <div>
                 <strong>${port.name}</strong>
                 <div>Port ${port.port} · VLAN ${port.vlan} · ${port.speed} Mbps</div>
               </div>
-              <span class="badge ${String(port.status) === '1' ? 'up' : 'down'}">${String(port.status) === '1' ? 'ACTIVE' : 'DOWN'}</span>
-              <button type="button" data-switch-index="${swIndex}" data-port-index="${portIndex}" class="toggle-port-btn">Toggle</button>
+              <span class="badge ${String(port.status) === '1' ? 'up' : 'down'}">${String(port.status) === '1' ? t('active') : t('down')}</span>
+              <button type="button" data-switch-index="${swIndex}" data-port-index="${portIndex}" class="toggle-port-btn">${t('toggle')}</button>
             </div>
           `).join('')}
         </div>
@@ -89,9 +432,17 @@ function drawSwitches() {
 
   track.querySelectorAll('.toggle-port-btn').forEach((button) => {
     button.addEventListener('click', async () => {
-      const switchIndex = Number(button.dataset.switchIndex);
-      const portIndex = Number(button.dataset.portIndex);
-      await togglePort(switchIndex, portIndex);
+      await togglePort(Number(button.dataset.switchIndex), Number(button.dataset.portIndex));
+    });
+  });
+  track.querySelectorAll('[data-refresh-index]').forEach((button) => {
+    button.addEventListener('click', async () => refreshSwitch(Number(button.dataset.refreshIndex)));
+  });
+  track.querySelectorAll('[data-remove-index]').forEach((button) => {
+    button.addEventListener('click', () => {
+      state.switches.splice(Number(button.dataset.removeIndex), 1);
+      persistSwitches();
+      drawSwitches();
     });
   });
 }
@@ -100,34 +451,127 @@ async function togglePort(switchIndex, portIndex) {
   const sw = state.switches[switchIndex];
   const port = sw.ports[portIndex];
   const nextValue = String(port.status) === '1' ? 2 : 1;
-  const url = `http://localhost:5050/api/snmp/port/${port.port}/status?host=${encodeURIComponent(sw.host)}&community=${encodeURIComponent(sw.community)}`;
-
-  try {
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value: nextValue }),
-    });
-  } catch (error) {
-    console.warn('Using optimistic port update', error);
-  }
-
+  const query = new URLSearchParams({ host: sw.host, community: sw.community });
+  await api(`/api/snmp/port/${port.port}/status?${query.toString()}`, {
+    method: 'POST',
+    body: JSON.stringify({ value: nextValue }),
+  });
   port.status = String(nextValue);
+  persistSwitches();
   drawSwitches();
 }
 
 function renderTerminal() {
   const screen = document.getElementById('terminal-screen');
+  const status = document.getElementById('terminal-status');
   if (screen) screen.textContent = state.terminal.history.join('\n');
+  if (status) {
+    status.textContent = `${state.terminal.connected ? t('statusConnected') : t('statusDisconnected')} · ${state.terminal.protocol.toUpperCase()} ${state.terminal.host || '-'}`;
+  }
+}
+
+async function restoreTerminalSession() {
+  if (!state.terminal.sessionId) {
+    renderTerminal();
+    return;
+  }
+  try {
+    const payload = await api(`/api/terminal/session/${state.terminal.sessionId}`);
+    state.terminal.connected = true;
+    state.terminal.protocol = payload.protocol;
+    state.terminal.host = payload.host;
+    state.terminal.port = payload.port;
+    state.terminal.username = payload.username || '';
+    if (!state.terminal.history.includes(t('connectSuccess'))) {
+      state.terminal.history.push(t('connectSuccess'));
+    }
+  } catch (error) {
+    state.terminal.connected = false;
+    state.terminal.sessionId = '';
+    state.terminal.history.push(t('sessionGone'));
+  }
+  persistTerminal();
+  renderTerminal();
+}
+
+async function connectTerminal() {
+  const protocol = document.getElementById('terminal-protocol').value;
+  const host = document.getElementById('terminal-host').value.trim();
+  const port = document.getElementById('terminal-port').value.trim();
+  const username = document.getElementById('terminal-username').value.trim();
+  const password = document.getElementById('terminal-password').value;
+
+  const payload = await api('/api/terminal/session/connect', {
+    method: 'POST',
+    body: JSON.stringify({ protocol, host, port: Number(port || (protocol === 'ssh' ? 22 : 23)), username, password }),
+  });
+
+  Object.assign(state.terminal, {
+    connected: true,
+    protocol,
+    host,
+    port: payload.port,
+    username,
+    password,
+    sessionId: payload.session_id,
+  });
+  state.terminal.history.push(`[${protocol.toUpperCase()}] ${payload.message}`);
+  state.terminal.history.push(payload.output || '');
+  persistTerminal();
+  renderTerminal();
+}
+
+async function sendTerminalCommand(command) {
+  if (!state.terminal.connected || !state.terminal.sessionId) {
+    state.terminal.history.push(t('connectFirst'));
+    persistTerminal();
+    renderTerminal();
+    return;
+  }
+  const payload = await api(`/api/terminal/session/${state.terminal.sessionId}/command`, {
+    method: 'POST',
+    body: JSON.stringify({ command }),
+  });
+  if (payload.output) {
+    state.terminal.history.push(payload.output);
+  }
+  persistTerminal();
+  renderTerminal();
+}
+
+async function disconnectTerminal() {
+  if (state.terminal.sessionId) {
+    try {
+      await api(`/api/terminal/session/${state.terminal.sessionId}`, { method: 'DELETE' });
+    } catch (error) {
+      state.terminal.history.push(error.message);
+    }
+  }
+  state.terminal.connected = false;
+  state.terminal.sessionId = '';
+  state.terminal.password = '';
+  state.terminal.history.push('[SYSTEM] Session closed.');
+  persistTerminal();
+  renderTerminal();
+}
+
+function fillTerminalFieldsFromState() {
+  document.getElementById('terminal-protocol').value = state.terminal.protocol || 'ssh';
+  document.getElementById('terminal-host').value = state.terminal.host || '';
+  document.getElementById('terminal-port').value = state.terminal.port || '';
+  document.getElementById('terminal-username').value = state.terminal.username || '';
+  document.getElementById('terminal-password').value = state.terminal.password || '';
 }
 
 function initSwitchPage() {
   drawSwitches();
-  renderTerminal();
+  fillTerminalFieldsFromState();
+  restoreTerminalSession();
   const addButton = document.getElementById('add-switch-btn');
   const formPanel = document.getElementById('switch-form-panel');
   const switchForm = document.getElementById('switch-form');
   const terminalConnect = document.getElementById('terminal-connect');
+  const terminalDisconnect = document.getElementById('terminal-disconnect');
   const terminalForm = document.getElementById('terminal-form');
 
   addButton.addEventListener('click', () => formPanel.classList.toggle('hidden'));
@@ -139,37 +583,33 @@ function initSwitchPage() {
       name: formData.get('name'),
       host: formData.get('host'),
       community: formData.get('community'),
+      sshPort: Number(formData.get('sshPort')),
+      telnetPort: Number(formData.get('telnetPort')),
+      username: formData.get('username'),
       ports: [],
+      error: '',
+      loading: false,
     };
     state.switches.push(switchItem);
+    persistSwitches();
     switchForm.reset();
     formPanel.classList.add('hidden');
     drawSwitches();
-    await createSwitchCard(switchItem);
+    await refreshSwitch(state.switches.length - 1);
   });
 
   terminalConnect.addEventListener('click', async () => {
-    const protocol = document.getElementById('terminal-protocol').value;
-    const host = document.getElementById('terminal-host').value || 'not-set';
-    state.terminal.protocol = protocol;
-    state.terminal.host = host;
-
     try {
-      const response = await fetch('http://localhost:5050/api/terminal/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ protocol, host, command: 'connect' }),
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.message || 'Terminal connection error');
-      state.terminal.connected = true;
-      state.terminal.history.push(`[SSH] Connected to ${host}`);
-      state.terminal.history.push(`[SYSTEM] ${payload.output}`);
+      await connectTerminal();
     } catch (error) {
-      state.terminal.connected = false;
       state.terminal.history.push(`[SYSTEM] ${error.message}`);
+      persistTerminal();
+      renderTerminal();
     }
-    renderTerminal();
+  });
+
+  terminalDisconnect.addEventListener('click', async () => {
+    await disconnectTerminal();
   });
 
   terminalForm.addEventListener('submit', async (event) => {
@@ -177,36 +617,35 @@ function initSwitchPage() {
     const input = document.getElementById('terminal-input');
     const command = input.value.trim();
     if (!command) return;
-
     state.terminal.history.push(`> ${command}`);
-    if (!state.terminal.connected) {
-      state.terminal.history.push(`[SYSTEM] No active SSH session.`);
-      input.value = '';
-      renderTerminal();
-      return;
-    }
-
+    input.value = '';
+    persistTerminal();
+    renderTerminal();
     try {
-      const response = await fetch('http://localhost:5050/api/terminal/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          protocol: state.terminal.protocol,
-          host: state.terminal.host,
-          command,
-        }),
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.message || 'Terminal execution error');
-      state.terminal.history.push(`[${payload.host}] ${payload.output}`);
+      await sendTerminalCommand(command);
     } catch (error) {
       state.terminal.history.push(`[SYSTEM] ${error.message}`);
+      persistTerminal();
+      renderTerminal();
     }
+  });
+}
 
-    input.value = '';
-    renderTerminal();
+function initLanguageSelector() {
+  const select = document.getElementById('language-select');
+  select.value = state.language;
+  select.addEventListener('change', () => {
+    state.language = select.value;
+    setCookie(STORAGE_KEYS.language, state.language);
+    if (!state.terminal.history.length) {
+      state.terminal.history = [t('terminalReady')];
+    }
+    persistTerminal();
+    render(location.hash.replace('#', '') || 'main');
   });
 }
 
 window.addEventListener('hashchange', () => render());
+
+initLanguageSelector();
 render();
