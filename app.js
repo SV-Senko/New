@@ -46,6 +46,15 @@ const translations = {
     sshPortLabel: 'SSH port',
     telnetPortLabel: 'Telnet port',
     usernameLabel: 'Username',
+    modeTabsLabel: 'Режим добавления',
+    modeSnmp: 'Single SNMP',
+    modeHybrid: 'SNMP + Terminal',
+    modeTerminal: 'Single Telnet / SSH',
+    accessOptional: 'Параметры доступа (необязательно)',
+    snmpSection: 'SNMP',
+    accessSection: 'SSH / Telnet',
+    terminalOnlyHint: 'Этот тип устройства добавляется без SNMP-опроса и используется только для терминала.',
+    noSnmpPorts: 'Для этого устройства SNMP не настроен, поэтому опрос портов недоступен.',
     swipeLabel: '[ SWIPE SWITCHES ]',
     terminalLabel: '[ TERMINAL ]',
     terminalTitle: 'Инженерная консоль',
@@ -120,6 +129,15 @@ const translations = {
     sshPortLabel: 'SSH port',
     telnetPortLabel: 'Telnet port',
     usernameLabel: 'Username',
+    modeTabsLabel: 'Add mode',
+    modeSnmp: 'Single SNMP',
+    modeHybrid: 'SNMP + Terminal',
+    modeTerminal: 'Single Telnet / SSH',
+    accessOptional: 'Access settings (optional)',
+    snmpSection: 'SNMP',
+    accessSection: 'SSH / Telnet',
+    terminalOnlyHint: 'This device type is added without SNMP polling and is used only for terminal access.',
+    noSnmpPorts: 'SNMP is not configured for this device, so port polling is unavailable.',
     swipeLabel: '[ SWIPE SWITCHES ]',
     terminalLabel: '[ TERMINAL ]',
     terminalTitle: 'Engineering console',
@@ -156,11 +174,56 @@ const translations = {
     sessionGone: 'Saved session no longer exists on the server.',
     restoredSwitches: 'Switch inventory restored from cookies.',
   },
+  ru_old: {
+    langLabel: 'Языкъ',
+    title: 'Консоль управленiя коммутаторами',
+    inventoryTitle: 'Добавленiе и контроль коммутаторовъ',
+    modeTabsLabel: 'Режимъ добавленiя',
+    modeSnmp: 'Одиночный SNMP',
+    modeHybrid: 'SNMP + Терминалъ',
+    modeTerminal: 'Только Telnet / SSH',
+    accessOptional: 'Параметры доступа (необязательно)',
+    terminalTitle: 'Инженерная консоль',
+    terminalOnlyHint: 'Се устройство добавляется безъ SNMP-опроса и служитъ токмо для терминала.',
+    noSnmpPorts: 'SNMP не настроенъ, посему опросъ портовъ недоступенъ.',
+    terminalClosed: 'Сессiя закрыта.',
+  },
+  de: {
+    langLabel: 'Sprache',
+    title: 'Switch-Verwaltungskonsole',
+    inventoryTitle: 'Switches hinzufügen und steuern',
+    modeTabsLabel: 'Hinzufügen-Modus',
+    modeSnmp: 'Nur SNMP',
+    modeHybrid: 'SNMP + Terminal',
+    modeTerminal: 'Nur Telnet / SSH',
+    accessOptional: 'Zugangsdaten (optional)',
+    terminalTitle: 'Engineering-Konsole',
+    terminalOnlyHint: 'Dieser Gerätetyp wird ohne SNMP hinzugefügt und nur für den Terminalzugang verwendet.',
+    noSnmpPorts: 'Für dieses Gerät ist SNMP nicht konfiguriert; Portabfrage ist nicht verfügbar.',
+    terminalClosed: 'Sitzung beendet.',
+  },
+  zh: {
+    langLabel: '语言',
+    title: '交换机管理控制台',
+    inventoryTitle: '添加和管理交换机',
+    modeTabsLabel: '添加模式',
+    modeSnmp: '仅 SNMP',
+    modeHybrid: 'SNMP + 终端',
+    modeTerminal: '仅 Telnet / SSH',
+    accessOptional: '访问参数（可选）',
+    terminalTitle: '工程终端',
+    terminalOnlyHint: '该设备类型不使用 SNMP，仅用于终端访问。',
+    noSnmpPorts: '该设备未配置 SNMP，因此无法轮询端口。',
+    terminalClosed: '会话已关闭。',
+  },
 };
+
+const translationFallbacks = { ru_old: ["ru", "en"], de: ["en", "ru"], zh: ["en", "ru"], ru: ["en"], en: ["ru"] };
 
 const state = {
   language: readCookie(STORAGE_KEYS.language) || 'ru',
   switches: readJsonCookie(STORAGE_KEYS.switches, []),
+  addMode: "snmp",
   terminal: readJsonCookie(STORAGE_KEYS.terminal, {
     connected: false,
     protocol: 'ssh',
@@ -178,7 +241,11 @@ if (!Array.isArray(state.terminal.history) || !state.terminal.history.length) {
 }
 
 function t(key) {
-  return (translations[state.language] || translations.ru)[key] || key;
+  const chain = [state.language, ...(translationFallbacks[state.language] || []), "ru", "en"];
+  for (const lang of chain) {
+    if (translations[lang] && translations[lang][key]) return translations[lang][key];
+  }
+  return key;
 }
 
 function setCookie(name, value, days = COOKIE_DAYS) {
@@ -286,22 +353,32 @@ function templates() {
           <button class="add-switch-btn" id="add-switch-btn" type="button">+</button>
         </div>
         <div class="panel form-panel hidden" id="switch-form-panel">
+          <div class="tab-label">${t('modeTabsLabel')}</div>
+          <div class="mode-tabs">
+            <button type="button" class="mode-tab ${state.addMode === 'snmp' ? 'active' : ''}" data-mode="snmp">${t('modeSnmp')}</button>
+            <button type="button" class="mode-tab ${state.addMode === 'hybrid' ? 'active' : ''}" data-mode="hybrid">${t('modeHybrid')}</button>
+            <button type="button" class="mode-tab ${state.addMode === 'terminal' ? 'active' : ''}" data-mode="terminal">${t('modeTerminal')}</button>
+          </div>
           <form id="switch-form" class="switch-form">
+            ${state.addMode !== 'terminal' ? `
             <div class="form-section">
-              <p class="panel-label">SNMP</p>
+              <p class="panel-label">${t('snmpSection')}</p>
               <div class="form-grid">
                 <label>${t('nameLabel')}<input name="name" placeholder="Core-SW-01" required /></label>
                 <label>${t('hostLabel')}<input name="host" placeholder="192.168.0.5" required /></label>
-                <label>${t('communityLabel')}<input name="community" placeholder="system" value="system" required /></label>
+                <label>${t('communityLabel')}<input name="community" placeholder="system" value="system" ${state.addMode === 'terminal' ? '' : 'required'} /></label>
               </div>
-            </div>
+            </div>` : ''}
             <div class="form-section">
-              <p class="panel-label">SSH / Telnet</p>
+              <p class="panel-label">${state.addMode === 'snmp' ? t('accessOptional') : t('accessSection')}</p>
               <div class="form-grid">
-                <label>${t('sshPortLabel')}<input name="sshPort" type="number" value="22" required /></label>
-                <label>${t('telnetPortLabel')}<input name="telnetPort" type="number" value="23" required /></label>
+                <label>${t('nameLabel')}<input name="terminalName" placeholder="Edge-Term-01" ${state.addMode === 'terminal' ? 'required' : ''} /></label>
+                <label>${t('hostLabel')}<input name="terminalHost" placeholder="192.168.0.15" ${state.addMode === 'terminal' ? 'required' : ''} /></label>
+                <label>${t('sshPortLabel')}<input name="sshPort" type="number" value="22" /></label>
+                <label>${t('telnetPortLabel')}<input name="telnetPort" type="number" value="23" /></label>
                 <label>${t('usernameLabel')}<input name="username" placeholder="admin" /></label>
               </div>
+              ${state.addMode === 'terminal' ? `<div class="mode-hint">${t('terminalOnlyHint')}</div>` : ''}
             </div>
             <div class="form-submit"><button type="submit">${t('save')}</button></div>
           </form>
@@ -384,12 +461,20 @@ async function api(path, options = {}) {
 }
 
 async function fetchPorts(switchItem) {
+  if (!switchItem.hasSnmp) return [];
   const query = new URLSearchParams({ host: switchItem.host, community: switchItem.community });
   return Object.values(await api(`/api/snmp/ports?${query.toString()}`));
 }
 
 async function refreshSwitch(index) {
   const switchItem = state.switches[index];
+  if (!switchItem.hasSnmp) {
+    switchItem.ports = [];
+    switchItem.error = "";
+    persistSwitches();
+    drawSwitches();
+    return;
+  }
   switchItem.loading = true;
   drawSwitches();
   switchItem.error = '';
@@ -419,17 +504,18 @@ function drawSwitches() {
       <article class="switch-card">
         <p class="panel-label">[ ${sw.name} ]</p>
         <strong>${sw.host}</strong>
-        <div class="switch-meta">SSH ${sw.sshPort || 22} · Telnet ${sw.telnetPort || 23} · ${sw.username || 'n/a'}</div>
+        <div class="switch-meta">${sw.mode || "snmp"} · SSH ${sw.sshPort || 22} · Telnet ${sw.telnetPort || 23} · ${sw.username || 'n/a'}</div>
         <div class="switch-summary">
           <div class="stat"><span>${t('portsCount')}</span><strong>${ports.length}</strong></div>
           <div class="stat"><span>${t('activeCount')}</span><strong>${active}</strong></div>
         </div>
         <div class="switch-actions">
-          <button type="button" data-refresh-index="${swIndex}">${t('refreshPorts')}</button>
+          ${sw.hasSnmp ? `<button type="button" data-refresh-index="${swIndex}">${t('refreshPorts')}</button>` : ``}
           <button type="button" data-remove-index="${swIndex}">${t('removeSwitch')}</button>
         </div>
         ${sw.error ? `<div class="error-box">${sw.error}</div>` : ''}
         ${sw.loading ? '<div class="loading-box">Loading…</div>' : ''}
+        ${sw.hasSnmp ? '' : `<div class="loading-box">${t('noSnmpPorts')}</div>`}
         <div class="port-list">
           ${ports.map((port, portIndex) => `
             <div class="port-row">
@@ -465,6 +551,7 @@ function drawSwitches() {
 
 async function togglePort(switchIndex, portIndex) {
   const sw = state.switches[switchIndex];
+  if (!sw.hasSnmp) return;
   const port = sw.ports[portIndex];
   const nextValue = String(port.status) === '1' ? 2 : 1;
   const query = new URLSearchParams({ host: sw.host, community: sw.community });
@@ -592,16 +679,30 @@ function initSwitchPage() {
 
   addButton.addEventListener('click', () => formPanel.classList.toggle('hidden'));
 
+  document.querySelectorAll('.mode-tab').forEach((button) => {
+    button.addEventListener('click', () => {
+      state.addMode = button.dataset.mode;
+      render('switch');
+    });
+  });
+
   switchForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const formData = new FormData(switchForm);
+    const mode = state.addMode;
+    const hasSnmp = mode !== 'terminal';
+    const hasTerminal = mode !== 'snmp' || Boolean(formData.get('terminalHost'));
     const switchItem = {
-      name: formData.get('name'),
-      host: formData.get('host'),
-      community: formData.get('community'),
-      sshPort: Number(formData.get('sshPort')),
-      telnetPort: Number(formData.get('telnetPort')),
+      mode,
+      hasSnmp,
+      hasTerminal,
+      name: hasSnmp ? formData.get('name') : formData.get('terminalName'),
+      host: hasSnmp ? formData.get('host') : formData.get('terminalHost'),
+      community: hasSnmp ? formData.get('community') : '',
+      sshPort: Number(formData.get('sshPort') || 22),
+      telnetPort: Number(formData.get('telnetPort') || 23),
       username: formData.get('username'),
+      terminalHost: formData.get('terminalHost') || formData.get('host'),
       ports: [],
       error: '',
       loading: false,
@@ -611,7 +712,9 @@ function initSwitchPage() {
     switchForm.reset();
     formPanel.classList.add('hidden');
     drawSwitches();
-    await refreshSwitch(state.switches.length - 1);
+    if (switchItem.hasSnmp) {
+      await refreshSwitch(state.switches.length - 1);
+    }
   });
 
   terminalConnect.addEventListener('click', async () => {

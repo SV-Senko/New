@@ -49,13 +49,15 @@ button { cursor: pointer; }
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 24px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  padding-left: 24px;
 }
 .language-box {
   display: grid;
   gap: 6px;
+  margin-right: 8px;
 }
 .language-box select { min-width: 80px; padding: 8px; }
 .brand, .panel-label {
@@ -110,10 +112,28 @@ button { cursor: pointer; }
   display: grid;
   gap: 14px;
 }
+.tab-label {
+  color: var(--warning);
+  margin-bottom: 10px;
+}
+.mode-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.mode-tab.active {
+  border-color: var(--warning);
+  color: var(--warning);
+}
 .form-section {
   border: 2px solid var(--border);
   padding: 14px;
   background: rgba(7, 11, 72, 0.45);
+}
+.mode-hint {
+  margin-top: 10px;
+  color: var(--warning);
 }
 .form-grid {
   display: grid;
